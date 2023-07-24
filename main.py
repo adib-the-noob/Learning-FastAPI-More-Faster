@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Path
+from fastapi import FastAPI, Path, Query
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -25,7 +25,7 @@ BOOKS = [
     MyBook(8, 'Right Ho Jeeves', 'P.D. Woodhouse', 1934, 4.2),
     MyBook(9, 'The Code of the Wooster', 'P.D. Woodhouse', 1938, 4.7),
     MyBook(10, 'Thank You Jeeves', 'P.D. Woodhouse', 1934, 4.2),
-    MyBook(11, 'The DaVinci Code', 'Dan Brown', 2003, 4.2),
+    MyBook(11, 'The DaVinci Code', 'Dan', 2003, 4.2),
 ]
 
 
@@ -103,3 +103,11 @@ async def delete_book(book_id: int):
         if i.id == book_id:
             BOOKS.remove(i)
             return {"message": "Book deleted successfully"}
+        
+@app.get("/get-books-by-author")
+async def get_books_by_author(author: Optional[str] = Query(min_length=2, max_length=50)):
+    books = []
+    for book in BOOKS:
+        if book.author == author:
+            books.append(book)
+    return books
