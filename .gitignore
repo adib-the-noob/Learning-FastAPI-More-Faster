@@ -1,0 +1,9 @@
+venv
+env/
+__pycache__/
+*.py[cod]
+
+# pyenv
+.python-version
+
+.idea
