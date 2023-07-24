@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Path
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -71,15 +71,17 @@ def find_book_by_id(book : Book):
 async def get_books():
     return BOOKS
 
+
 @app.get("/get-book/{book_id}")
-async def get_book(book_id: int):
+async def get_book(book_id: int = Path(gt=0)): # path for Path validation
     for book in BOOKS:
         if book.id == book_id:
             return book
     return {"message": "Book not found"}
 
+
 @app.get("/get-books-by-rating/{rating}")
-async def get_books_by_rating(rating: float):
+async def get_books_by_rating(rating: float = Path(gt=0, le=5)):
     books = []
     for book in BOOKS:
         if book.rating == rating:
