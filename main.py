@@ -67,6 +67,10 @@ def find_book_by_id(book : Book):
         # book.id = 1
     return book
 
+@app.get("/books")
+async def get_books():
+    return BOOKS
+
 @app.get("/get-book/{book_id}")
 async def get_book(book_id: int):
     for book in BOOKS:
@@ -81,3 +85,19 @@ async def get_books_by_rating(rating: float):
         if book.rating == rating:
             books.append(book)
     return books
+
+
+@app.put("/update-book/{book_id}")
+async def update_book(book_id: int, book: Book):
+    for i in range(len(BOOKS)):
+        if BOOKS[i].id == book_id:
+            BOOKS[i] = book
+            return {"message": "Book updated successfully"}
+        
+
+@app.delete("/delete-book/{book_id}")
+async def delete_book(book_id: int):
+    for i in BOOKS:
+        if i.id == book_id:
+            BOOKS.remove(i)
+            return {"message": "Book deleted successfully"}
