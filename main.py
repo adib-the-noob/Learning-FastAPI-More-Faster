@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Path, Query
+from fastapi import FastAPI, Path, Query, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
+from starlette import status
 
 app = FastAPI()
 
@@ -49,7 +50,7 @@ class Book(BaseModel):
         }
 
 
-@app.get("/")
+@app.get("/", status_code=status.HTTP_200_OK)
 async def root():
     return {"message": "Hello World"}
 
@@ -72,39 +73,42 @@ async def get_books():
     return BOOKS
 
 
-@app.get("/get-book/{book_id}")
+@app.get("/get-book/{book_id}", status_code=status.HTTP_200_OK)
 async def get_book(book_id: int = Path(gt=0)): # path for Path validation
     for book in BOOKS:
         if book.id == book_id:
             return book
-    return {"message": "Book not found"}
+        raise HTTPException(status_code=404, detail="Book not found")
 
 
-@app.get("/get-books-by-rating/{rating}")
+
+@app.get("/get-books-by-rating/{rating}", status_code=status.HTTP_200_OK)
 async def get_books_by_rating(rating: float = Path(gt=0, le=5)):
     books = []
     for book in BOOKS:
         if book.rating == rating:
             books.append(book)
+        raise HTTPException(status_code=404, detail="Book not found")
     return books
 
 
-@app.put("/update-book/{book_id}")
+@app.put("/update-book/{book_id}", status_code=status.HTTP_202_ACCEPTED)
 async def update_book(book_id: int, book: Book):
     for i in range(len(BOOKS)):
         if BOOKS[i].id == book_id:
             BOOKS[i] = book
             return {"message": "Book updated successfully"}
-        
+        raise HTTPException(status_code=404, detail="Book not found")
 
-@app.delete("/delete-book/{book_id}")
+@app.delete("/delete-book/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_book(book_id: int):
     for i in BOOKS:
         if i.id == book_id:
             BOOKS.remove(i)
             return {"message": "Book deleted successfully"}
+    raise HTTPException(status_code=404, detail="Book not found")
         
-@app.get("/get-books-by-author")
+@app.get("/get-books-by-author", status_code=status.HTTP_200_OK)
 async def get_books_by_author(author: Optional[str] = Query(min_length=2, max_length=50)):
     books = []
     for book in BOOKS:
