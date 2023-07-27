@@ -9,6 +9,9 @@ from pydantic import BaseModel
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordRequestForm
 
+from .jwt_generator import generate_access_token
+from datetime import timedelta
+
 bcrypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter()
@@ -57,5 +60,9 @@ async def login_token(
 ):
     user = authenticate_user(form_data.username, form_data.password, db)
     if user is not None:
-        return {"access_token": form_data.username, "token_type": "bearer"}
-    return {"error": "Invalid credentials"}
+        token = generate_access_token(user.username, user.id, timedelta(minutes=30))
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+        }
+    return {"error": "invalid credentials"}
