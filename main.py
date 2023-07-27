@@ -23,6 +23,7 @@ def get_db():
 
 
 class TodoRequest(BaseModel):
+    id: int | None = None
     title: str | None = None
     description: str | None = None
     completed: bool | None = None
@@ -36,7 +37,7 @@ async def get_todos(db: Session = Depends(get_db)):
 
 @app.post("/create-todo", status_code=status.HTTP_201_CREATED)
 async def create_todo(todo: TodoRequest, db: Session = Depends(get_db)):
-    todo = Todos(title=todo.title, description=todo.description, completed=todo.completed)
+    todo = Todos(**todo.model_dump())
     if todo is not None:
         db.add(todo)
         db.commit()
@@ -50,4 +51,27 @@ async def get_todo_by_id(todo_id: int = Path(gt=0), db: Session = Depends(get_db
     todo = db.query(Todos).filter(Todos.id == todo_id).first()
     if todo is not None:
         return todo
+    raise HTTPException(status_code=404, detail="Todo not found")
+
+
+@app.put('/update-todo/{todo_id}/')
+async def update_todo_by_id(todo_id: int, todo_request: TodoRequest, db: Session = Depends(get_db)):
+    todo = db.query(Todos).filter(Todos.id == todo_id).first()
+    if todo is not None:
+        todo.title = todo_request.title
+        todo.description = todo_request.description
+        todo.completed = todo_request.completed
+        db.commit()
+        db.refresh(todo)
+        return todo
+    raise HTTPException(status_code=404, detail="Todo not found")
+
+
+@app.delete('/delete-todo/{todo_id}/', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_todo_by_id(todo_id: int, db: Session = Depends(get_db)):
+    todo = db.query(Todos).filter(Todos.id == todo_id).first()
+    if todo is not None:
+        db.delete(todo)
+        db.commit()
+        return {"message": "Todo deleted successfully"}
     raise HTTPException(status_code=404, detail="Todo not found")
