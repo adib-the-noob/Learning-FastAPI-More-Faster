@@ -3,10 +3,13 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Todos
 from pydantic import BaseModel
+from .jwt_generator import get_current_user
+
+from typing import Annotated
 
 router = APIRouter()
 
-
+user_dependency = Annotated[dict, Depends(get_current_user)]
 
 class TodoRequest(BaseModel):
     id: int | None = None
@@ -15,15 +18,18 @@ class TodoRequest(BaseModel):
     completed: bool | None = None
 
 
-@router.get("/all-todos", status_code=status.HTTP_200_OK)
+@router.get("/all-todos", status_code=status.HTTP_200_OK, response_model=list[TodoRequest])
 async def get_todos(db: Session = Depends(get_db)):
     todos = db.query(Todos).all()
     return todos
 
 
 @router.post("/create-todo", status_code=status.HTTP_201_CREATED)
-async def create_todo(todo: TodoRequest, db: Session = Depends(get_db)):
-    todo = Todos(**todo.model_dump())
+async def create_todo(todo: TodoRequest, user : user_dependency, db: Session = Depends(get_db)):
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication credentials", headers={"WWW-Authenticate": "Bearer"})
+
+    todo = Todos(**todo.model_dump(), user=user.get('id'))
     if todo is not None:
         db.add(todo)
         db.commit()

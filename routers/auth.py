@@ -21,6 +21,9 @@ router = APIRouter()
 def health():
     return {"status": "ok"}
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
 class UserRequest(BaseModel):
     email: str
@@ -54,15 +57,12 @@ def authenticate_user(username :str, password : str, db: db_dependency):
     return user
 
 
-@router.post("/login-token")
+@router.post("/login-token", response_model=Token)
 async def login_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: db_dependency
 ):
     user = authenticate_user(form_data.username, form_data.password, db)
     if user is not None:
         token = generate_access_token(user.username, user.id, timedelta(minutes=30))
-        return {
-            "access_token": token,
-            "token_type": "bearer",
-        }
+        return {"access_token": token, "token_type": "bearer"}
     return {"error": "invalid credentials"}
