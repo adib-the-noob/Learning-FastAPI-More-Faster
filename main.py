@@ -1,117 +1,53 @@
-from fastapi import FastAPI, Path, Query, HTTPException
-from pydantic import BaseModel, Field
-from typing import Optional
+from fastapi import FastAPI, Depends, HTTPException, Path
+import models
+from database import engine, SessionLocal
+
+from sqlalchemy.orm import Session
+from models import Todos
+
+from pydantic import BaseModel
+
 from starlette import status
 
 app = FastAPI()
 
-
-class MyBook:
-    def __init__(self, id, title, author, year, rating):
-        self.id = id
-        self.title = title
-        self.author = author
-        self.year = year
-        self.rating = rating
+models.Base.metadata.create_all(bind=engine)
 
 
-BOOKS = [
-    MyBook(1, 'The Great Gatsby', 'F. Scott Fitzgerald', 1925, 4.5),
-    MyBook(2, 'The DaVinci Code', 'Dan Brown', 2003, 4.2),
-    MyBook(3, 'Angels & Demons', 'Dan Brown', 2000, 4.0),
-    MyBook(4, 'The Lost Symbol', 'Dan Brown', 2009, 3.7),
-    MyBook(5, 'Old Man\'s War', 'John Scalzi', 2005, 4.1),
-    MyBook(6, 'The Lock Artist', 'Steve Hamilton', 2010, 4.0),
-    MyBook(7, 'HTML5', 'Remy Sharp', 2010, 4.3),
-    MyBook(8, 'Right Ho Jeeves', 'P.D. Woodhouse', 1934, 4.2),
-    MyBook(9, 'The Code of the Wooster', 'P.D. Woodhouse', 1938, 4.7),
-    MyBook(10, 'Thank You Jeeves', 'P.D. Woodhouse', 1934, 4.2),
-    MyBook(11, 'The DaVinci Code', 'Dan', 2003, 4.2),
-]
+def get_db():
+    try:
+        db = SessionLocal()
+        yield db
+    finally:
+        db.close()
 
 
-class Book(BaseModel):
-    # add id field optional
-    id: Optional[int] = Field(title="ID", description="ID of the book")
-    title: str = Field(min_length=1, max_length=50) 
-    author: str = Field(min_length=1, max_length=50)
-    year: int
-    rating: float = Field(gt=0, le=5)
-
-    class Config:
-        json_schema_extra = {
-            'example': {
-                'id': 1,
-                'title': 'The Great Gatsby',
-                'author': 'F. Scott Fitzgerald',
-                'year': 1925,
-                'rating': 4.5
-            }
-        }
+class TodoRequest(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    completed: bool | None = None
 
 
-@app.get("/", status_code=status.HTTP_200_OK)
-async def root():
-    return {"message": "Hello World"}
+@app.get("/all-todos", status_code=status.HTTP_200_OK)
+async def get_todos(db: Session = Depends(get_db)):
+    todos = db.query(Todos).all()
+    return todos
 
 
-@app.post("/books")
-async def create_book(book: Book):
-    book1 = MyBook(book.id, book.title, book.author, book.year, book.rating)
-    BOOKS.append(find_book_by_id(book1))
+@app.post("/create-todo", status_code=status.HTTP_201_CREATED)
+async def create_todo(todo: TodoRequest, db: Session = Depends(get_db)):
+    todo = Todos(title=todo.title, description=todo.description, completed=todo.completed)
+    if todo is not None:
+        db.add(todo)
+        db.commit()
+        db.refresh(todo)
+        return todo
+    raise HTTPException(status_code=404, detail="Todo not found")
 
 
-def find_book_by_id(book : Book):
-    if len(BOOKS) > 1 :
-        book.id = BOOKS[:-1].id + 1
-    # else:
-        # book.id = 1
-    return book
-
-@app.get("/books")
-async def get_books():
-    return BOOKS
-
-
-@app.get("/get-book/{book_id}", status_code=status.HTTP_200_OK)
-async def get_book(book_id: int = Path(gt=0)): # path for Path validation
-    for book in BOOKS:
-        if book.id == book_id:
-            return book
-        raise HTTPException(status_code=404, detail="Book not found")
-
-
-
-@app.get("/get-books-by-rating/{rating}", status_code=status.HTTP_200_OK)
-async def get_books_by_rating(rating: float = Path(gt=0, le=5)):
-    books = []
-    for book in BOOKS:
-        if book.rating == rating:
-            books.append(book)
-        raise HTTPException(status_code=404, detail="Book not found")
-    return books
-
-
-@app.put("/update-book/{book_id}", status_code=status.HTTP_202_ACCEPTED)
-async def update_book(book_id: int, book: Book):
-    for i in range(len(BOOKS)):
-        if BOOKS[i].id == book_id:
-            BOOKS[i] = book
-            return {"message": "Book updated successfully"}
-        raise HTTPException(status_code=404, detail="Book not found")
-
-@app.delete("/delete-book/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_book(book_id: int):
-    for i in BOOKS:
-        if i.id == book_id:
-            BOOKS.remove(i)
-            return {"message": "Book deleted successfully"}
-    raise HTTPException(status_code=404, detail="Book not found")
-        
-@app.get("/get-books-by-author", status_code=status.HTTP_200_OK)
-async def get_books_by_author(author: Optional[str] = Query(min_length=2, max_length=50)):
-    books = []
-    for book in BOOKS:
-        if book.author == author:
-            books.append(book)
-    return books
+@app.get('/get-todo/{todo_id}', status_code=status.HTTP_200_OK)
+async def get_todo_by_id(todo_id: int = Path(gt=0), db: Session = Depends(get_db)):
+    todo = db.query(Todos).filter(Todos.id == todo_id).first()
+    if todo is not None:
+        return todo
+    raise HTTPException(status_code=404, detail="Todo not found")
