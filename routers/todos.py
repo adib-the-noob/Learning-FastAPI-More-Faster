@@ -13,6 +13,7 @@ user_dependency = Annotated[dict, Depends(get_current_user)]
 
 class TodoRequest(BaseModel):
     id: int | None = None
+    user : int | None = None
     title: str | None = None
     description: str | None = None
     completed: bool | None = None
