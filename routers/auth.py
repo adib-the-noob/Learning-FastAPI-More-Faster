@@ -14,16 +14,21 @@ from datetime import timedelta
 
 bcrypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/auth",
+    tags=["auth"]
+)
 
 
 @router.get("/health")
 def health():
     return {"status": "ok"}
 
+
 class Token(BaseModel):
     access_token: str
     token_type: str
+
 
 class UserRequest(BaseModel):
     email: str
@@ -48,7 +53,7 @@ async def register_user(user_request: UserRequest, db: db_dependency):
     return user
 
 
-def authenticate_user(username :str, password : str, db: db_dependency):
+def authenticate_user(username: str, password: str, db: db_dependency):
     user = db.query(User).filter(User.username == username).first()
     if not user:
         return False
@@ -59,7 +64,7 @@ def authenticate_user(username :str, password : str, db: db_dependency):
 
 @router.post("/login-token", response_model=Token)
 async def login_token(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: db_dependency
+        form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: db_dependency
 ):
     user = authenticate_user(form_data.username, form_data.password, db)
     if user is not None:
